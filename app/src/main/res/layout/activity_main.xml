@@ -1,18 +1,140 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Hello World!"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+    <Toolbar
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:id="@+id/toolbar_main"
+        android:background="@color/purple_500"
+        app:navigationIcon="?attr/homeAsUpIndicator"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/txt_placeName"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                android:layout_alignParentStart="true"
+                android:background="@android:color/transparent"
+                android:gravity="center|start"
+                android:padding="8dp"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+        </RelativeLayout>
+
+    </Toolbar>
+
+    <LinearLayout
+        android:id="@+id/ll_searchlayout"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="5dp"
+        android:orientation="horizontal"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/toolbar_main">
+
+        <EditText
+            android:id="@+id/editText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="4"
+            android:hint="@string/search_location" />
+
+        <Button
+            android:id="@+id/search_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.5"
+            android:onClick="onMapSearch"
+            android:text="@string/search"
+            tools:ignore="OnClick" />
+
+    </LinearLayout>
+    <fragment
+        android:id="@+id/map"
+        android:name="com.google.android.gms.maps.SupportMapFragment"
+        android:layout_width="0dp"
+        android:layout_height="400dp"
+        tools:context=".MapsActivity"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/ll_searchlayout"/>
+
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:gravity="bottom"
+        android:orientation="vertical"
+        app:layout_constraintTop_toBottomOf="@+id/ll_searchlayout">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:layout_width="80dp"
+            android:layout_height="wrap_content"
+            android:onClick="normal"
+            android:textSize="11sp"
+            android:layout_margin="5dp"
+            android:textColor="@color/white"
+            android:background="@color/teal_700"
+            android:text="@string/normal"
+            tools:ignore="OnClick" />
+        <androidx.appcompat.widget.AppCompatButton
+            android:layout_width="80dp"
+            android:layout_height="wrap_content"
+            android:onClick="satellite"
+            android:textSize="11sp"
+            android:layout_margin="5dp"
+            android:textColor="@color/white"
+            android:background="@color/teal_700"
+            android:text="@string/satellite"
+            tools:ignore="OnClick" />
+        <androidx.appcompat.widget.AppCompatButton
+            android:layout_width="80dp"
+            android:layout_height="wrap_content"
+            android:onClick="terrain"
+            android:textSize="11sp"
+            android:layout_margin="5dp"
+            android:textColor="@color/white"
+            android:background="@color/teal_700"
+            android:text="@string/terrain"
+            tools:ignore="OnClick" />
+        <androidx.appcompat.widget.AppCompatButton
+            android:layout_width="80dp"
+            android:layout_height="wrap_content"
+            android:onClick="hybrid"
+            android:textSize="11sp"
+            android:layout_margin="5dp"
+            android:textColor="@color/white"
+            android:background="@color/teal_700"
+            android:text="@string/hybrid"
+            tools:ignore="OnClick" />
+
+    </LinearLayout>
+
+<TextView
+    android:id="@+id/txt_instruction"
+    android:visibility="visible"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:text="@string/instruction"
+    android:textColor="@android:color/holo_red_dark"
+    android:padding="5dp"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintTop_toBottomOf="@id/map"/>
 </androidx.constraintlayout.widget.ConstraintLayout>

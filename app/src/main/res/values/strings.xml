@@ -1,3 +1,14 @@
 <resources>
     <string name="app_name">FA_alfyGeorge_C0836170_android</string>
+    <string name="my_favourite_places">My Favourite Places</string>
+    <string name="no_favrourite_places_added_npress_button_to_add_your_favourite_place">No favrourite places added \nPress + button to add your favourite place</string>
+    <string name="normal">NORMAL</string>
+    <string name="satellite">SATELLITE</string>
+    <string name="terrain">TERRAIN</string>
+    <string name="hybrid">HYBRID</string>
+    <string name="place_name">Place Name</string>
+    <string name="created_date">Created Date</string>
+    <string name="search">Search</string>
+    <string name="search_location">Search Location</string>
+    <string name="instruction">*Long click anywhere on map or search a place to add your favourite place</string>
 </resources>
