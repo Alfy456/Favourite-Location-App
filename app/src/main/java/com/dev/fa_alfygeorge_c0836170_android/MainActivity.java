@@ -151,21 +151,43 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             place = new Place();
             place = (Place) getIntent().getSerializableExtra("fav_place");
             binding.txtPlaceName.setText(place.getPlaceName());
-            savedLocation = place.placeName;
+            savedLocation = place.getPlaceName();
 
+            if (place.isVisited){
+                binding.btnVisited.setEnabled(false);
+                binding.btnVisited.setText("VISITED");
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+        binding.btnVisited.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+
+                roomDB.placeDAO().update(place.id,savedLocation,place.getCreatedDate(),place.getLatitude(),place.getLongitude(),true);
+                Intent intent = new Intent(getApplicationContext(),HomeActivity.class);
+                startActivity(intent);
+                binding.btnVisited.setEnabled(false);
+
+            }
+        });
     }
 
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
         map = googleMap;
 
+        if(SharedPrefHelper.getInstance(getApplicationContext()).getBolIsUpdate()){
+           editSavedLocationMarker();
+           binding.txtInstruction.setText("*Search a new location to update your favourite place");
+            binding.txtInstruction.setVisibility(View.VISIBLE);
+            binding.searchButton.setText("UPDATE");
+        }else {
 
-            if (!isGranted()){
+            if (!isGranted()) {
                 requestLocationPermission();
-            }else {
+            } else {
                 startUpdateLocation();
             }
             if (binding.txtPlaceName.getText().toString().matches("")) {
@@ -177,13 +199,17 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                         }
                     }
                 });
-            }else {
+            } else {
                 setSavedLocationMarker();
-
+                binding.btnVisited.setVisibility(View.VISIBLE);
                 binding.txtInstruction.setVisibility(View.GONE);
                 binding.llSearchlayout.setVisibility(View.GONE);
-            }
 
+//                if (place.isVisited) {
+//                    binding.btnVisited.setEnabled(false);
+//                }
+            }
+        }
 
     }
 
@@ -375,7 +401,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 latitude = address.getLatitude();
                 longitude = address.getLongitude();
                 favMarker.setSnippet(formatter.format(date));
-              //  updateFavPlaces();
+                roomDB.placeDAO().update(place.getId(),favAddress,formatter.format(date),latitude,longitude,false);
+                placeList.clear();
+                placeList.addAll( roomDB.placeDAO().getAllPlaces());
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -406,6 +434,25 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     public void setSavedLocationMarker(){
+        List<Address> addressList = null;
+
+        Geocoder geocoder = new Geocoder(this);
+        try {
+            addressList = geocoder.getFromLocationName(savedLocation, 1);
+            assert addressList != null;
+            Address address = addressList.get(0);
+            LatLng latLng = new LatLng(address.getLatitude(), address.getLongitude());
+            favMarker = map.addMarker(new MarkerOptions().position(latLng).title(savedLocation).draggable(true));
+            map.animateCamera(CameraUpdateFactory.zoomIn());
+            map.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
+            dest = new LatLng(address.getLatitude(), address.getLongitude());
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+    public void editSavedLocationMarker(){
         List<Address> addressList = null;
 
         Geocoder geocoder = new Geocoder(this);
@@ -468,11 +515,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     }
 
-    public void isVisit(View view) {
-       // place.setVisited(true);
-        roomDB.placeDAO().update(place.getId(),savedLocation,place.getCreatedDate(),latitude,longitude,true);
 
-    }
+
 
     /*implemention direction API*/
     private class DownloadTask extends AsyncTask<String, Void, String> {

@@ -75,10 +75,12 @@ public class HomeActivity extends AppCompatActivity {
             @Override
             public void onRowClicked(int position) {
 
-                SharedPrefHelper.getInstance(getApplicationContext()).setBolIsUpdate(false);
-                Intent intent = new Intent(getApplicationContext(),MainActivity.class);
-                intent.putExtra("fav_place", placeList.get(position));
-                startActivity(intent);
+                    SharedPrefHelper.getInstance(getApplicationContext()).setBolIsUpdate(false);
+                    Intent intent = new Intent(getApplicationContext(),MainActivity.class);
+                    intent.putExtra("fav_place", placeList.get(position));
+                    startActivity(intent);
+
+
             }
 
             @Override
@@ -106,10 +108,10 @@ public class HomeActivity extends AppCompatActivity {
 
                                 break;
                             case R.id.edit_place:
-//                                SharedPrefHelper.getInstance(getApplicationContext()).setBolIsUpdate(true);
-//                                Intent intent = new Intent(HomeActivity.this,MainActivity.class);
-//                                intent.putExtra("update_place", placeList.get(position));
-//                                startActivity(intent);
+                                SharedPrefHelper.getInstance(getApplicationContext()).setBolIsUpdate(true);
+                                Intent intent = new Intent(HomeActivity.this,MainActivity.class);
+                                intent.putExtra("fav_place", placeList.get(position));
+                                startActivity(intent);
                                 break;
                         }
                     }
