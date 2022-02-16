@@ -1,8 +1,10 @@
 package com.dev.fa_alfygeorge_c0836170_android;
 
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
@@ -14,6 +16,7 @@ import com.dev.fa_alfygeorge_c0836170_android.databinding.ActivityHomeBinding;
 import com.dev.fa_alfygeorge_c0836170_android.listener.PlaceClickListener;
 import com.dev.fa_alfygeorge_c0836170_android.model.Place;
 import com.dev.fa_alfygeorge_c0836170_android.utils.RecyclerTouchListener;
+import com.dev.fa_alfygeorge_c0836170_android.utils.SharedPrefHelper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,8 +37,7 @@ public class HomeActivity extends AppCompatActivity {
 
         //initialize database
         roomDB = RoomDB.getInstance(this);
-        placeList = roomDB.placeDAO().getAllPlaces();
-
+        placeList=roomDB.placeDAO().getAllPlaces();
         binding.fabAdd.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -50,8 +52,11 @@ public class HomeActivity extends AppCompatActivity {
         }else {
             binding.txtInfo.setVisibility(View.GONE);
             binding.recyclerHome.setVisibility(View.VISIBLE);
+
+
             updateRecycler(placeList);
         }
+
     }
 
     private void updateRecycler(List<Place> placeList) {
@@ -69,6 +74,8 @@ public class HomeActivity extends AppCompatActivity {
         touchListener.setClickable(new RecyclerTouchListener.OnRowClickListener() {
             @Override
             public void onRowClicked(int position) {
+
+                SharedPrefHelper.getInstance(getApplicationContext()).setBolIsUpdate(false);
                 Intent intent = new Intent(getApplicationContext(),MainActivity.class);
                 intent.putExtra("fav_place", placeList.get(position));
                 startActivity(intent);
@@ -85,13 +92,24 @@ public class HomeActivity extends AppCompatActivity {
                     public void onSwipeOptionClicked(int viewID, int position) {
                         switch (viewID){
                             case R.id.delete_place:
-                                placeList.remove(position);
-                                roomDB.placeDAO().delete(placeList.get(position));
-                                placesAdapter.notifyDataSetChanged();
+                                try {
+                                    roomDB.placeDAO().delete(placeList.get(position));
+                                    placeList.remove(position);
+                                    placesAdapter.notifyDataSetChanged();
+                                    if (placeList.isEmpty()){
+                                        binding.txtInfo.setVisibility(View.VISIBLE);
+                                        binding.recyclerHome.setVisibility(View.GONE);
+                                    }
+                                }catch (Exception e){
+                                    e.printStackTrace();
+                                }
+
                                 break;
                             case R.id.edit_place:
-                                Toast.makeText(getApplicationContext(),"Edit Not Available", Toast.LENGTH_SHORT).show();
-
+//                                SharedPrefHelper.getInstance(getApplicationContext()).setBolIsUpdate(true);
+//                                Intent intent = new Intent(HomeActivity.this,MainActivity.class);
+//                                intent.putExtra("update_place", placeList.get(position));
+//                                startActivity(intent);
                                 break;
                         }
                     }
@@ -101,10 +119,10 @@ public class HomeActivity extends AppCompatActivity {
     private  final PlaceClickListener placeClickListener = new PlaceClickListener() {
         @Override
         public void onClick(Place place) {
+                Intent intent = new Intent(getApplicationContext(), MainActivity.class);
+                intent.putExtra("fav_place", place);
+                startActivity(intent);
 
-            Intent intent = new Intent(getApplicationContext(),MainActivity.class);
-            intent.putExtra("fav_place", place);
-            startActivity(intent);
         }
     };
 
@@ -114,4 +132,8 @@ public class HomeActivity extends AppCompatActivity {
         binding.recyclerHome.addOnItemTouchListener(touchListener);
 
     }
+
+
+
+
 }

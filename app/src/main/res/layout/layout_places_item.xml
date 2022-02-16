@@ -125,6 +125,25 @@
                     app:layout_constraintStart_toStartOf="@+id/place_name"
                     app:layout_constraintTop_toBottomOf="@+id/place_name" />
 
+                <TextView
+                    android:visibility="gone"
+                    android:id="@+id/txtVisited"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:layout_marginLeft="8dp"
+                    android:layout_marginRight="8dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginBottom="8dp"
+                    android:text="@string/visited"
+                    android:textColor="@color/teal_700"
+                    android:lines="1"
+                    android:layout_marginTop="5dp"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="@+id/created_date" />
+
             </androidx.constraintlayout.widget.ConstraintLayout>
 
         </LinearLayout>

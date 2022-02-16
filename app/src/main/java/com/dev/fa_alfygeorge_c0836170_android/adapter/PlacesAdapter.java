@@ -7,6 +7,7 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.cardview.widget.CardView;
@@ -41,12 +42,18 @@ public class PlacesAdapter extends RecyclerView.Adapter<PlacesViewHolder> {
         holder.txt_place_name.setText(placeList.get(position).getPlaceName());
         holder.txt_created_date.setText(placeList.get(position).getCreatedDate());
 
-        holder.card_place.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                placeClickListener.onClick(placeList.get(holder.getAdapterPosition()));
-            }
-        });
+        if (placeList.get(position).isVisited) {
+           // holder.card_place.setBackgroundResource(R.color.purple_200);
+            holder.txt_visited.setVisibility(View.VISIBLE);
+
+        }
+            holder.card_place.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    placeClickListener.onClick(placeList.get(holder.getAdapterPosition()));
+                }
+            });
+
     }
 
     @Override
@@ -58,7 +65,7 @@ public class PlacesAdapter extends RecyclerView.Adapter<PlacesViewHolder> {
 class PlacesViewHolder extends RecyclerView.ViewHolder{
 
     RelativeLayout card_place;
-    TextView txt_place_name,txt_created_date;
+    TextView txt_place_name,txt_created_date,txt_visited;
 
     public PlacesViewHolder(@NonNull View itemView) {
         super(itemView);
@@ -66,5 +73,6 @@ class PlacesViewHolder extends RecyclerView.ViewHolder{
         card_place = itemView.findViewById(R.id.card_places);
         txt_place_name = itemView.findViewById(R.id.place_name);
         txt_created_date = itemView.findViewById(R.id.created_date);
+        txt_visited = itemView.findViewById(R.id.txtVisited);
     }
 }

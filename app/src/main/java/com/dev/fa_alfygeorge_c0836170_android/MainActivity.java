@@ -16,29 +16,22 @@ import android.graphics.Color;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
 import android.util.Log;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.Toast;
-import android.widget.Toolbar;
 
-import com.akexorcist.googledirection.DirectionCallback;
-import com.akexorcist.googledirection.GoogleDirection;
-import com.akexorcist.googledirection.constant.RequestResult;
-import com.akexorcist.googledirection.constant.TransportMode;
-import com.akexorcist.googledirection.model.Direction;
-import com.akexorcist.googledirection.model.Info;
-import com.akexorcist.googledirection.model.Leg;
-import com.akexorcist.googledirection.model.Route;
-import com.akexorcist.googledirection.util.DirectionConverter;
-import com.dev.fa_alfygeorge_c0836170_android.adapter.PlacesAdapter;
 import com.dev.fa_alfygeorge_c0836170_android.database.PlaceDAO;
 import com.dev.fa_alfygeorge_c0836170_android.database.RoomDB;
 import com.dev.fa_alfygeorge_c0836170_android.databinding.ActivityMainBinding;
 import com.dev.fa_alfygeorge_c0836170_android.model.Place;
+import com.dev.fa_alfygeorge_c0836170_android.model.Result;
+import com.dev.fa_alfygeorge_c0836170_android.network.ApiInterface;
+import com.dev.fa_alfygeorge_c0836170_android.utils.DirectionsJSONParser;
+import com.dev.fa_alfygeorge_c0836170_android.utils.SharedPrefHelper;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationAvailability;
 import com.google.android.gms.location.LocationCallback;
@@ -57,12 +50,28 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 
+import org.json.JSONObject;
+import org.w3c.dom.Document;
+
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
+import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
     GoogleMap map;
@@ -78,6 +87,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     double latitude,longitude;
     double userLat,userLong;
     String savedLocation;
+    LatLng origin;
+    LatLng dest;
+    double dist;
 
     private static final int REQUEST_CODE = 1;
     public static final int UPDATE_INTERVAl = 5000;
@@ -94,8 +106,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private Marker favMarker,userMarker;
     private List<Marker> markerList = new ArrayList<>();
     LatLng latLng = null;
-    String serverKey = "AIzaSyCL4gLFBHhmr1fvxVxTYSZEru6t3CxyrxE";
+    String serverKey = "AIzaSyA0KSQvEjOO7EqwXW8dY0ntLxFrgn1_Zpo";
+    Document document;
 
+    private ApiInterface apiInterface;
+    private Retrofit retrofit;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -105,16 +120,22 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         //initialize roomDB
         roomDB = RoomDB.getInstance(this);
+        retrofit = new Retrofit.Builder()
+                .addConverterFactory(GsonConverterFactory.create())
+                .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
+                .baseUrl("https://maps.googleapis.com/")
+                .build();
+        apiInterface = retrofit.create(ApiInterface.class);
+
 
         //toolbar
         binding.toolbarMain.setNavigationIcon(R.drawable.ic_back);
         binding.toolbarMain.setNavigationOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(getApplicationContext(),HomeActivity.class);
-                startActivity(intent);
 
-
+                    Intent intent = new Intent(getApplicationContext(),HomeActivity.class);
+                    startActivity(intent);
             }
         });
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
@@ -141,25 +162,29 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     public void onMapReady(@NonNull GoogleMap googleMap) {
         map = googleMap;
 
-        if (!isGranted()){
-            requestLocationPermission();
-        }else {
-            startUpdateLocation();
-        }
-        if (binding.txtPlaceName.getText().toString().matches("")) {
-            map.setOnMapLongClickListener(new GoogleMap.OnMapLongClickListener() {
-                @Override
-                public void onMapLongClick(@NonNull LatLng latLng) {
-                    if (isNewFavLocation) {
-                        setMarker(latLng);
+
+            if (!isGranted()){
+                requestLocationPermission();
+            }else {
+                startUpdateLocation();
+            }
+            if (binding.txtPlaceName.getText().toString().matches("")) {
+                map.setOnMapLongClickListener(new GoogleMap.OnMapLongClickListener() {
+                    @Override
+                    public void onMapLongClick(@NonNull LatLng latLng) {
+                        if (isNewFavLocation) {
+                            setMarker(latLng);
+                        }
                     }
-                }
-            });
-        }else {
-            setSavedLocationMarker();
-            binding.txtInstruction.setVisibility(View.GONE);
-            binding.llSearchlayout.setVisibility(View.GONE);
-        }
+                });
+            }else {
+                setSavedLocationMarker();
+
+                binding.txtInstruction.setVisibility(View.GONE);
+                binding.llSearchlayout.setVisibility(View.GONE);
+            }
+
+
     }
 
     //adding favourite place on long click
@@ -179,15 +204,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         insertFavPlaces();
     }
 
-    private void drawLine() {
-        PolylineOptions polylineOptions = new PolylineOptions()
-                .color(Color.BLACK)
-                .width(10)
-                .add(userMarker.getPosition(),favMarker.getPosition());
-
-        map.addPolyline(polylineOptions);
-    }
-
     private void setDateTime() {
         formatter = new SimpleDateFormat("EEE, d MMM yyyy HH:mm a");
         date = new Date();
@@ -204,6 +220,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         roomDB.placeDAO().insert(place);
         Toast.makeText(this, "New Favourite Place Added", Toast.LENGTH_SHORT).show();
     }
+
 
     //Request for Location
     private void requestLocationPermission() {
@@ -258,16 +275,27 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             public void onLocationResult(@NonNull LocationResult locationResult) {
                 super.onLocationResult(locationResult);
                 // mMap.clear();
-                if (!isNewFavLocation) {
                     Location location = locationResult.getLastLocation();
-
                     LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
                     userLat = location.getLatitude();
                     userLong = location.getLongitude();
-                    userMarker = map.addMarker(new MarkerOptions().position(latLng).title("User Location"));
-                    map.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
+                    origin = new LatLng(userLat, userLong);
+                    if (!isNewFavLocation) {
+                        userMarker = map.addMarker(new MarkerOptions().position(latLng).title("User Location"));
+                        map.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
+                        isNewFavLocation = true;
 
-                    isNewFavLocation = true;
+                    }
+
+                    if (!SharedPrefHelper.getInstance(getApplicationContext()).getBolIsUpdate()) {
+                        drawPolylines();
+                    }
+
+                try {
+                    getDistance(userLat+","+userLong,dest.latitude+","+dest.longitude);
+
+                }catch (Exception e){
+                    e.printStackTrace();
                 }
             }
 
@@ -283,6 +311,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
             return;
         }
+
+
         fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
 
     }
@@ -299,6 +329,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             favMarker.setTitle(favAddress);
 
         } catch (IOException e) {
+            Log.d(TAG, "findFavAddress: "+e.getMessage());
             e.printStackTrace();
         }
 
@@ -324,29 +355,54 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     public void onMapSearch(View view) {
-        String location = binding.editText.getText().toString();
-        List<Address> addressList = null;
+        if (SharedPrefHelper.getInstance(getApplicationContext()).getBolIsUpdate()){
+            String location = binding.editText.getText().toString();
+            List<Address> addressList = null;
 
-        Geocoder geocoder = new Geocoder(this);
-        try {
-            addressList = geocoder.getFromLocationName(location, 1);
+            Geocoder geocoder = new Geocoder(this);
+            try {
+                map.clear();
+                addressList = geocoder.getFromLocationName(location, 1);
+                assert addressList != null;
+                Address address = addressList.get(0);
+                LatLng latLng = new LatLng(address.getLatitude(), address.getLongitude());
+                favAddress = addressList.get(0).getAddressLine(0); // If any additional address line present than only, check with max available address lines by getMaxAddressLineIndex()
 
-        } catch (IOException e) {
-            e.printStackTrace();
+                favMarker = map.addMarker(new MarkerOptions().position(latLng).title(favAddress));
+                map.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
+                setDateTime();
+                // drawLine();
+                latitude = address.getLatitude();
+                longitude = address.getLongitude();
+                favMarker.setSnippet(formatter.format(date));
+              //  updateFavPlaces();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }else {
+            String location = binding.editText.getText().toString();
+            List<Address> addressList = null;
+
+            Geocoder geocoder = new Geocoder(this);
+            try {
+                addressList = geocoder.getFromLocationName(location, 1);
+                assert addressList != null;
+                Address address = addressList.get(0);
+                LatLng latLng = new LatLng(address.getLatitude(), address.getLongitude());
+                favAddress = addressList.get(0).getAddressLine(0); // If any additional address line present than only, check with max available address lines by getMaxAddressLineIndex()
+
+                favMarker = map.addMarker(new MarkerOptions().position(latLng).title(favAddress));
+                map.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
+                setDateTime();
+                // drawLine();
+                latitude = address.getLatitude();
+                longitude = address.getLongitude();
+                favMarker.setSnippet(formatter.format(date));
+                insertFavPlaces();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
-        assert addressList != null;
-        Address address = addressList.get(0);
-        LatLng latLng = new LatLng(address.getLatitude(), address.getLongitude());
-        favAddress = addressList.get(0).getAddressLine(0); // If any additional address line present than only, check with max available address lines by getMaxAddressLineIndex()
-
-        favMarker = map.addMarker(new MarkerOptions().position(latLng).title(favAddress));
-        map.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
-        setDateTime();
-       // drawLine();
-        latitude = address.getLatitude();
-        longitude = address.getLongitude();
-        favMarker.setSnippet(formatter.format(date));
-        insertFavPlaces();
     }
 
     public void setSavedLocationMarker(){
@@ -358,79 +414,218 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             assert addressList != null;
             Address address = addressList.get(0);
             LatLng latLng = new LatLng(address.getLatitude(), address.getLongitude());
-            map.addMarker(new MarkerOptions().position(latLng).title(savedLocation));
+            favMarker = map.addMarker(new MarkerOptions().position(latLng).title(savedLocation).draggable(true));
             map.animateCamera(CameraUpdateFactory.zoomIn());
             map.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
-            getDestinationInfo(latLng);
+            dest = new LatLng(address.getLatitude(), address.getLongitude());
         } catch (IOException e) {
             e.printStackTrace();
         }
+
     }
 
+    //draw polyline
+    private void drawPolylines() {
+
+        // Checks, whether start and end locations are captured
+        // Getting URL to the Google Directions API
+        try{
+            String url = getDirectionsUrl(origin, dest);
+            Log.d("url", url + "");
+            DownloadTask downloadTask = new DownloadTask();
+            // Start downloading json data from Google Directions API
+            downloadTask.execute(url);
+
+           // getDistance(userLat+","+userLong,dest.latitude+","+dest.longitude);
+
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
+
+    }
+
+    private void getDistance(String origin, String destination){
+        Call<Result> call = apiInterface.getDistance(origin,destination,serverKey);
+        call.enqueue(new Callback<Result>() {
+            @Override
+            public void onResponse(Call<Result> call, Response<Result> response) {
+
+
+                binding.txtDistance.setVisibility(View.VISIBLE);
+                binding.txtDuration.setVisibility(View.VISIBLE);
+               binding.txtDistance.setText("Total Distance: "+response.body().getRows().get(0).getElements().get(0).getDistance().getText());
+               binding.txtDuration.setText("Total Duration: "+response.body().getRows().get(0).getElements().get(0).getDuration().getText());
+            //  Toast.makeText(MainActivity.this, response.body().getRows().get(0).getElements().get(0).getDistance().getText(), Toast.LENGTH_SHORT).show();
+
+            }
+
+            @Override
+            public void onFailure(Call<Result> call, Throwable t) {
+
+            }
+        });
+
+    }
+
+    public void isVisit(View view) {
+       // place.setVisited(true);
+        roomDB.placeDAO().update(place.getId(),savedLocation,place.getCreatedDate(),latitude,longitude,true);
+
+    }
+
+    /*implemention direction API*/
+    private class DownloadTask extends AsyncTask<String, Void, String> {
+
+        @Override
+        protected String doInBackground(String... url) {
+
+            String data = "";
+
+            try {
+                data = downloadUrl(url[0]);
+
+            } catch (Exception e) {
+                Log.d("Background Task", e.toString());
+            }
+            return data;
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            super.onPostExecute(result);
+
+            ParserTask parserTask = new ParserTask();
+
+
+            parserTask.execute(result);
+
+        }
+    }
     /**
-     * Draw polyline on map, get distance and duration of the route
-     *
-     * @param latLngDestination LatLng of the destination
+     * A class to parse the Google Places in JSON format
      */
-    private void getDestinationInfo(LatLng latLngDestination) {
- // Api Key For Google Direction API \\
-        final LatLng origin = new LatLng(43.9999, 79.654654);
-        final LatLng destination = latLngDestination;
-        //-------------Using AK Exorcist Google Direction Library---------------\\
-        GoogleDirection.withServerKey(serverKey)
-                .from(origin)
-                .to(destination)
-                .transportMode(TransportMode.DRIVING)
-                .execute(new DirectionCallback() {
-                    @Override
-                    public void onDirectionSuccess(Direction direction, String rawBody) {
+    private class ParserTask extends AsyncTask<String, Integer, List<List<HashMap<String, String>>>> {
 
-                        String status = direction.getStatus();
-                        if (status.equals(RequestResult.OK)) {
-                            Route route = direction.getRouteList().get(0);
-                            Leg leg = route.getLegList().get(0);
-                            Info distanceInfo = leg.getDistance();
-                            Info durationInfo = leg.getDuration();
-                            String distance = distanceInfo.getText();
-                            String duration = durationInfo.getText();
+        // Parsing the data in non-ui thread
+        @Override
+        protected List<List<HashMap<String, String>>> doInBackground(String... jsonData) {
 
-                            //------------Displaying Distance and Time-----------------\\
-                           // showingDistanceTime(distance, duration); // Showing distance and time to the user in the UI \\
-                            String message = "Total Distance is " + distance + " and Estimated Time is " + duration;
-                            Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show();
+            JSONObject jObject;
+            List<List<HashMap<String, String>>> routes = null;
+            try {
+                jObject = new JSONObject(jsonData[0]);
+                DirectionsJSONParser parser = new DirectionsJSONParser();
 
-                            //--------------Drawing Path-----------------\\
-                            ArrayList<LatLng> directionPositionList = leg.getDirectionPoint();
-                            PolylineOptions polylineOptions = DirectionConverter.createPolyline(getApplicationContext(),
-                                    directionPositionList, 5, getResources().getColor(R.color.teal_200));
-                            map.addPolyline(polylineOptions);
-                            //--------------------------------------------\\
 
-                            //-----------Zooming the map according to marker bounds-------------\\
-                            LatLngBounds.Builder builder = new LatLngBounds.Builder();
-                            builder.include(origin);
-                            builder.include(destination);
-                            LatLngBounds bounds = builder.build();
+                routes = parser.parse(jObject);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return routes;
+        }
 
-                            int width = getResources().getDisplayMetrics().widthPixels;
-                            int height = getResources().getDisplayMetrics().heightPixels;
-                            int padding = (int) (width * 0.20); // offset from edges of the map 10% of screen
+        @Override
+        protected void onPostExecute(List<List<HashMap<String, String>>> result) {
+            ArrayList<LatLng> points = new ArrayList<LatLng>();;
+            PolylineOptions lineOptions = new PolylineOptions();;
 
-                            CameraUpdate cu = CameraUpdateFactory.newLatLngBounds(bounds, width, height, padding);
-                            map.animateCamera(cu);
-                            //------------------------------------------------------------------\\
+            LatLngBounds.Builder builder = new LatLngBounds.Builder();
+            lineOptions.width(8);
+            lineOptions.color(Color.RED);
+            MarkerOptions markerOptions = new MarkerOptions();
+            // Traversing through all the routes
+            for(int i=0;i<result.size();i++){
+                // Fetching i-th route
+                List<HashMap<String, String>> path = result.get(i);
+                // Fetching all the points in i-th route
+                for(int j=0;j<path.size();j++){
+                    HashMap<String,String> point = path.get(j);
+                    double lat = Double.parseDouble(point.get("lat"));
+                    double lng = Double.parseDouble(point.get("lng"));
+                    LatLng position = new LatLng(lat, lng);
+                    points.add(position);
+                    builder.include(position);
+                }
+                // Adding all the points in the route to LineOptions
+                lineOptions.addAll(points);
 
-                        } else if (status.equals(RequestResult.NOT_FOUND)) {
-                            Toast.makeText(getApplicationContext(), "No routes exist", Toast.LENGTH_SHORT).show();
-                        }
-                    }
+            }
+            // Drawing polyline in the Google Map for the i-th route
+            if(points.size()!=0)map.addPolyline(lineOptions);//to avoid crash
 
-                    @Override
-                    public void onDirectionFailure(Throwable t) {
-                        // Do something here
-                    }
-                });
-        //-------------------------------------------------------------------------------\\
 
+            int width = getResources().getDisplayMetrics().widthPixels;
+            int padding = (int) (width * 0.05);
+            /*create the bounds from latlngBuilder to set into map camera*/
+            LatLngBounds bounds = builder.build();
+            /*create the camera with bounds and padding to set into map*/
+            CameraUpdate cu = CameraUpdateFactory.newLatLngBounds(bounds, padding);
+            map.animateCamera(cu);
+        }
     }
+    private String getDirectionsUrl(LatLng origin, LatLng dest) {
+
+        // Origin of route
+        String str_origin = "origin=" + origin.latitude + "," + origin.longitude;
+
+        // Destination of route
+        String str_dest = "destination=" + dest.latitude + "," + dest.longitude;
+
+        // Sensor enabled
+        String sensor = "sensor=false";
+        String mode = "mode=driving";
+        String key ="key=" +serverKey;
+        // Building the parameters to the web service
+        String parameters = str_origin + "&" + str_dest + "&" + sensor + "&" + key;
+
+        // Output format
+        String output = "json";
+
+        // Building the url to the web service
+        String url = "https://maps.googleapis.com/maps/api/directions/" + output + "?" + parameters;
+        // https://maps.googleapis.com/maps/api/directions/json?origin=Time+Square&destination=Chelsea+Market&key=YOUR_API_KEY
+
+        return url;
+    }
+    /**
+     * A method to download json data from url
+     */
+    private String downloadUrl(String strUrl) throws IOException {
+        String data = "";
+        InputStream iStream = null;
+        HttpURLConnection urlConnection = null;
+        try {
+            URL url = new URL(strUrl);
+
+            urlConnection = (HttpURLConnection) url.openConnection();
+
+            urlConnection.connect();
+
+            iStream = urlConnection.getInputStream();
+
+            BufferedReader br = new BufferedReader(new InputStreamReader(iStream));
+
+            StringBuffer sb = new StringBuffer();
+
+            String line = "";
+            while ((line = br.readLine()) != null) {
+                sb.append(line);
+            }
+
+            data = sb.toString();
+
+            br.close();
+            Log.d("data", data);
+
+        } catch (Exception e) {
+            Log.d("Exception", e.toString());
+        } finally {
+            iStream.close();
+            urlConnection.disconnect();
+        }
+        return data;
+    }
+
+
 }

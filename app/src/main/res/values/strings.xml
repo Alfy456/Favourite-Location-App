@@ -11,4 +11,8 @@
     <string name="search">Search</string>
     <string name="search_location">Search Location</string>
     <string name="instruction">*Long click anywhere on map or search a place to add your favourite place</string>
+    <string name="distance">Distance</string>
+    <string name="duration">Duration</string>
+    <string name="mark_as_visited">MARK AS VISITED</string>
+    <string name="visited">VISITED</string>
 </resources>

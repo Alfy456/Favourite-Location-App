@@ -18,8 +18,8 @@ public interface PlaceDAO {
     @Query("SELECT * FROM Place ORDER BY id DESC")
     List<Place> getAllPlaces();
 
-    @Query("UPDATE Place SET placeName = :placeName, createdDate = :createdDate,isVisited = :isVisited WHERE id = :id")
-    void update(int id,String placeName,String createdDate,boolean isVisited);
+    @Query("UPDATE Place SET placeName = :placeName, createdDate = :createdDate,latitude= :latitude,longitude= :longitude,isVisited = :isVisited WHERE id = :id")
+    void update(int id,String placeName,String createdDate,double latitude,double longitude,boolean isVisited);
 
     @Delete
     void delete(Place place);
